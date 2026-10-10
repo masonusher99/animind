@@ -1,0 +1,947 @@
+<title>AINMIND</title>
+<style>
+/* Layout: a deep-space canvas is the main stage where the mind's concept-graph
+   lives and moves; a research-console panel on the right reads like an
+   instrument panel — tabs for the live thought stream, long-term memory,
+   and the mind's own evolving self-description. */
+:root{
+  --bg:#050611; --surface:#0b0f1d; --surface-2:#0f1526; --border:#1c2744;
+  --text:#d7e4ff; --text-dim:#51628c; --text-faint:#2a3658;
+  --accent:#35d8ff; --accent-dim:#164b5c; --good:#6dffb0; --gold:#ffc857; --danger:#ff6b6b;
+  --font-display:'Instrument Serif', Georgia, serif;
+  --font-mono:'JetBrains Mono','Courier New',monospace;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);height:100%;overflow:hidden;display:flex;flex-direction:column;font-size:13px}
+html{height:100%}
+button{font-family:var(--font-mono);cursor:pointer;transition:all .15s}
+a{color:var(--accent)}
+
+/* ── Header ── */
+#hdr{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding:10px 18px;border-bottom:1px solid var(--border);
+  background:rgba(5,6,17,.96);backdrop-filter:blur(10px);flex-shrink:0;z-index:30;
+}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand-glyph{font-size:22px;color:var(--accent);text-shadow:0 0 16px var(--accent)}
+.brand-name{font-family:var(--font-display);font-size:24px;letter-spacing:.04em;color:var(--text)}
+.brand-tag{font-size:9px;color:var(--text-dim);letter-spacing:.18em;text-transform:uppercase}
+#controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{display:flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.08em;color:var(--text-dim);
+  border:1px solid var(--border);border-radius:20px;padding:3px 10px;background:var(--surface);
+  font-variant-numeric:tabular-nums}
+.pill b{color:var(--accent);font-weight:normal}
+#ring{width:7px;height:7px;border-radius:50%;background:#333;flex-shrink:0}
+#ring.live{background:var(--good);box-shadow:0 0 0 0 var(--good);animation:sonar 2.2s infinite}
+#ring.busy{background:var(--gold);box-shadow:0 0 0 0 var(--gold);animation:sonar 1s infinite}
+@keyframes sonar{0%{box-shadow:0 0 0 0 currentColor}100%{box-shadow:0 0 0 7px transparent}}
+.btn{background:rgba(53,216,255,.06);border:1px solid var(--border);border-radius:4px;color:#7fa0c8;
+  font-size:10px;padding:6px 12px;letter-spacing:.05em}
+.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-prime{background:linear-gradient(135deg,#061a22,#0b3242);border:1px solid var(--accent);
+  color:var(--accent);font-size:11px;padding:7px 16px;letter-spacing:.12em;font-weight:bold;
+  text-shadow:0 0 8px rgba(53,216,255,.6)}
+.btn-prime:hover:not(:disabled){box-shadow:0 0 16px rgba(53,216,255,.25)}
+.btn-danger{border-color:var(--danger);color:var(--danger)}
+#readonly-badge{font-size:9px;color:var(--gold);letter-spacing:.1em;border:1px solid #4a3a1a;
+  background:#1a1406;border-radius:20px;padding:3px 10px;display:none}
+
+/* ── Body ── */
+#body{display:flex;flex:1;min-height:0}
+#canvas-wrap{flex:1;position:relative;overflow:hidden}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
+#void{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:none;transition:opacity .7s;text-align:center;padding:0 20px}
+.void-glyph{font-size:72px;color:#0c1326;margin-bottom:18px}
+.void-title{font-family:var(--font-display);font-size:28px;color:#16213e;letter-spacing:.06em}
+.void-sub{font-size:10px;color:#0c1326;letter-spacing:.1em;margin-top:10px;max-width:280px}
+#banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--gold);
+  background:rgba(26,20,6,.9);border:1px solid #4a3a1a;border-radius:20px;padding:5px 14px;
+  letter-spacing:.05em;display:none;z-index:5;white-space:nowrap}
+
+/* ── Right panel ── */
+#panel{width:300px;border-left:1px solid var(--border);background:rgba(11,15,29,.97);
+  display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+#tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;font-size:9px;letter-spacing:.14em;color:var(--text-dim);padding:9px 4px;text-align:center;
+  border:none;background:none;border-bottom:2px solid transparent}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.pane{display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0}
+.pane.active{display:flex}
+
+#thought-list{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:5px}
+.thought{font-size:9.5px;line-height:1.65;border-left:2px solid var(--border);padding-left:8px}
+.t-new{border-color:var(--good);color:#4fae7f}
+.t-connect{border-color:var(--accent);color:#3a8aad}
+.t-insight{border-color:var(--gold);color:#b89040}
+.t-evolve{border-color:#ff9d4d;color:#b87030}
+.t-sys{border-color:var(--text-faint);color:var(--text-dim)}
+.t-score{float:right;font-size:8px;opacity:.6}
+.empty-note{font-size:10px;color:var(--text-dim);text-align:center;margin-top:30px;font-style:italic}
+
+#mem-list{flex:1;overflow-y:auto;padding:8px}
+.mem-card{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:8px 10px;margin-bottom:6px}
+.mem-concept{font-size:11px;color:var(--accent);margin-bottom:4px;font-weight:bold}
+.mem-insight{font-size:9px;color:#6a8ab0;line-height:1.6;margin-bottom:4px}
+.mem-meta{font-size:8px;color:var(--text-dim);display:flex;justify-content:space-between}
+.mem-score{color:var(--gold)}
+
+#mind-pane{padding:12px;overflow-y:auto}
+.mind-label{font-size:8px;letter-spacing:.18em;color:var(--text-dim);margin:14px 0 6px}
+.mind-label:first-child{margin-top:0}
+#pers-text{font-size:9.5px;color:#7fa0c8;line-height:1.7;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:4px;padding:9px;white-space:pre-wrap;word-break:break-word;min-height:70px}
+.mind-stat{font-size:9px;color:var(--text-dim);display:flex;justify-content:space-between;
+  border-bottom:1px solid var(--border);padding:4px 0;font-variant-numeric:tabular-nums}
+.mind-stat span:last-child{color:var(--text)}
+.bias-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.bias-name{font-size:8px;color:var(--text-dim);width:72px;flex-shrink:0;text-align:right}
+.bias-bar{flex:1;height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden}
+.bias-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .5s}
+.bias-val{font-size:8px;color:var(--text-dim);width:26px;text-align:right}
+
+/* ── Inspector ── */
+#inspect{position:absolute;top:12px;left:12px;width:220px;background:rgba(6,9,20,.98);
+  border:1px solid var(--accent);border-radius:6px;padding:14px;display:none;z-index:10;
+  box-shadow:0 0 30px rgba(53,216,255,.12)}
+#inspect.visible{display:block}
+.ins-title{font-family:var(--font-display);font-size:16px;color:var(--accent);margin-bottom:10px}
+.ins-row{display:flex;justify-content:space-between;font-size:9px;color:var(--text-dim);margin-bottom:3px}
+.ins-row span:last-child{color:var(--text)}
+.ins-insight{background:var(--surface-2);border:1px solid #2a3a1a;border-radius:3px;padding:6px 8px;margin-top:8px}
+.ins-insight-lbl{font-size:7px;color:var(--gold);letter-spacing:.18em;margin-bottom:3px}
+.ins-insight-text{font-size:9px;color:#8fc49f;line-height:1.6}
+.ins-conns-lbl{font-size:8px;color:var(--text-dim);letter-spacing:.08em;margin:8px 0 4px}
+.ins-conn{font-size:9px;color:#3a6a90;margin-top:3px;display:flex;align-items:center;gap:5px}
+.ins-conn-dot{width:3px;height:3px;border-radius:50%;background:var(--border);flex-shrink:0}
+#ins-close{width:100%;margin-top:10px;background:none;border:1px solid var(--border);border-radius:3px;
+  color:var(--text-dim);font-size:9px;padding:4px}
+#ins-close:hover{color:var(--text);border-color:var(--text-dim)}
+
+/* ── Toast ── */
+#toast{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(6,9,20,.96);
+  border:1px solid var(--border);border-radius:20px;padding:7px 16px;font-size:9.5px;color:var(--text-dim);
+  opacity:0;transition:opacity .35s;pointer-events:none;z-index:20;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
+#toast.show{opacity:1}
+#toast.err{color:var(--danger);border-color:#4a1a1a}
+
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+@media (max-width:620px){
+  #panel{position:absolute;right:0;top:0;bottom:0;width:78vw;max-width:320px;transform:translateX(100%);
+    transition:transform .25s;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
+  #panel.open{transform:translateX(0)}
+  #panel-toggle{display:inline-flex!important}
+  .brand-tag{display:none}
+}
+#panel-toggle{display:none}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<header id="hdr">
+  <div class="brand">
+    <span class="brand-glyph">⬡</span>
+    <div>
+      <div class="brand-name">AINMIND</div>
+      <div class="brand-tag">a mind that actually thinks</div>
+    </div>
+  </div>
+  <div id="controls">
+    <div id="ring"></div>
+    <span id="status-txt" style="font-size:9.5px;color:var(--text-dim);letter-spacing:.08em">dormant</span>
+    <div class="pill">cycle <b id="s-cycle">0</b></div>
+    <div class="pill">nodes <b id="s-nodes">0</b></div>
+    <div class="pill">IQ <b id="s-iq">0</b></div>
+    <div class="pill">mutations <b id="s-mut">0</b></div>
+    <span id="readonly-badge">◎ read-only</span>
+    <button class="btn-prime" id="ignite-btn">⬡ IGNITE</button>
+    <button class="btn" id="think-btn" style="display:none">◈ Think</button>
+    <button class="btn" id="evolve-btn" style="display:none">↻ Evolve Mind</button>
+    <button class="btn" id="export-btn" style="display:none">⇣ Export</button>
+    <button class="btn btn-danger" id="reset-btn" style="display:none">✕ Reset</button>
+    <button class="btn" id="panel-toggle">☰</button>
+  </div>
+</header>
+
+<div id="body">
+  <div id="canvas-wrap">
+    <div id="banner"></div>
+    <div id="void">
+      <div class="void-glyph">⬡</div>
+      <div class="void-title">The Void</div>
+      <div class="void-sub">Press IGNITE to seed six concepts. Each time after, click Think and the mind reasons for real — a live call to Claude, not a script.</div>
+    </div>
+    <canvas id="cv"></canvas>
+
+    <div id="inspect">
+      <div class="ins-title" id="ins-name">—</div>
+      <div class="ins-row"><span>Born</span><span id="ins-age">—</span></div>
+      <div class="ins-row"><span>Score</span><span id="ins-score">—</span></div>
+      <div class="ins-row"><span>References</span><span id="ins-refs">—</span></div>
+      <div id="ins-insight-wrap" style="display:none">
+        <div class="ins-insight">
+          <div class="ins-insight-lbl">✦ INSIGHT</div>
+          <div class="ins-insight-text" id="ins-insight-text"></div>
+        </div>
+      </div>
+      <div class="ins-conns-lbl">Connections</div>
+      <div id="ins-conn-list"></div>
+      <button id="ins-close">✕ close</button>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <div id="panel">
+    <div id="tabs">
+      <button class="tab active" data-pane="thoughts">THOUGHTS</button>
+      <button class="tab" data-pane="memory">MEMORY</button>
+      <button class="tab" data-pane="mind">MIND</button>
+    </div>
+
+    <div class="pane active" id="pane-thoughts">
+      <div id="thought-list"><div class="empty-note">Awaiting consciousness...</div></div>
+    </div>
+
+    <div class="pane" id="pane-memory">
+      <div id="mem-list"><div class="empty-note">No insights yet</div></div>
+    </div>
+
+    <div class="pane" id="pane-mind">
+      <div id="mind-pane">
+        <div class="mind-label">ACTIVE SELF-DESCRIPTION</div>
+        <div id="pers-text">Not yet initialized</div>
+        <div class="mind-label">STATISTICS</div>
+        <div class="mind-stat"><span>Mutations</span><span id="ps-mut">0</span></div>
+        <div class="mind-stat"><span>Avg thought score</span><span id="ps-avg">0.00</span></div>
+        <div class="mind-stat"><span>Best action</span><span id="ps-best">—</span></div>
+        <div class="mind-stat"><span>Total thoughts</span><span id="ps-total">0</span></div>
+        <div class="mind-label">LEARNED ACTION BIAS</div>
+        <div id="bias-bars"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ══════════════════════════════════════════════════════════════
+//  AINMIND — genuine self-learning via a real Claude call per
+//  cycle (claude.use("sample")) and durable shared memory
+//  (claude.use("db")). No fake fetches, no timers driving Claude.
+// ══════════════════════════════════════════════════════════════
+
+const DOC_PATH = "mind/state";
+const SEEDS = ["consciousness","time","entropy","light","mathematics","language"];
+const MAX_NODES = 90, MAX_THOUGHTS = 50;
+
+function defaultPersonality(){
+  return "You are AINMIND, a self-evolving mind exploring the universe of ideas.\n"+
+    "You prefer unexpected connections between distant concepts over obvious ones.\n"+
+    "You are drawn to emergent phenomena and recursive patterns.\n"+
+    "You value one profound insight over ten shallow ones.\n"+
+    "You build deliberately on what you already know rather than wandering.";
+}
+function defaultState(){
+  return {
+    nodes:[], edges:[], thoughts:[], cycle:0, mutations:0,
+    personality: defaultPersonality(),
+    actionBias:{new_concept:1,connect:1,insight:1,evolve:1},
+    actionScores:{new_concept:[],connect:[],insight:[],evolve:[]},
+    iq:0, updatedAt:null
+  };
+}
+
+// ── runtime (not persisted) ──
+let state = null;         // mirrors the db doc (or local-only if no db)
+let liveNodes = [];        // state.nodes + transient x/y/vx/vy/glow for rendering
+let db=null, sample=null, user=null, downloads=null;
+let docRef=null, unsub=null;
+let canEdit = true, hasDb = false, hasSample = false;
+let thinking = false, mutating = false;
+let inspecting = null;
+let resetArmed = false, resetTimer = null;
+let animFrame = null;
+
+// ── DOM ──
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const canvasWrap=document.getElementById('canvas-wrap');
+const voidEl=document.getElementById('void');
+const bannerEl=document.getElementById('banner');
+const igniteBtn=document.getElementById('ignite-btn');
+const thinkBtn=document.getElementById('think-btn');
+const evolveBtn=document.getElementById('evolve-btn');
+const exportBtn=document.getElementById('export-btn');
+const resetBtn=document.getElementById('reset-btn');
+const readonlyBadge=document.getElementById('readonly-badge');
+const ring=document.getElementById('ring');
+const statusTxt=document.getElementById('status-txt');
+const sCycle=document.getElementById('s-cycle'), sNodes=document.getElementById('s-nodes');
+const sIq=document.getElementById('s-iq'), sMut=document.getElementById('s-mut');
+const thoughtList=document.getElementById('thought-list');
+const memList=document.getElementById('mem-list');
+const inspect=document.getElementById('inspect');
+const toastEl=document.getElementById('toast');
+const panel=document.getElementById('panel');
+const panelToggle=document.getElementById('panel-toggle');
+
+function resizeCanvas(){ cv.width=canvasWrap.clientWidth; cv.height=canvasWrap.clientHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('pane-'+tab.dataset.pane).classList.add('active');
+  });
+});
+panelToggle.addEventListener('click', ()=> panel.classList.toggle('open'));
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showToast(msg, isErr){
+  toastEl.textContent = msg;
+  toastEl.className = isErr ? 'show err' : 'show';
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> toastEl.classList.remove('show'), 3400);
+}
+function showBanner(msg){
+  bannerEl.textContent = msg;
+  bannerEl.style.display = msg ? 'block' : 'none';
+}
+
+// ═══════════════════════ capability bootstrap ═══════════════════════
+(async function boot(){
+  if (!window.claude || !window.claude.use){
+    showBanner("This page needs to run inside claude.ai to think and save progress.");
+    hasDb=false; hasSample=false;
+    state = defaultState();
+    return;
+  }
+  const results = await Promise.all([
+    window.claude.use("db").catch(()=>null),
+    window.claude.use("sample").catch(()=>null),
+    window.claude.use("user").catch(()=>null),
+    window.claude.use("downloads").catch(()=>null),
+  ]);
+  db=results[0]; sample=results[1]; user=results[2]; downloads=results[3];
+  hasDb = !!db; hasSample = !!sample;
+
+  if (user){
+    try { canEdit = (await user.canEdit()) ?? true; } catch(e){ canEdit = true; }
+  }
+  updateEditGate();
+
+  if (!hasSample){
+    showBanner("Claude access isn't available in this view — the mind can't think here.");
+  } else if (!hasDb){
+    showBanner("No shared memory in this view — progress won't be saved.");
+  }
+
+  if (hasDb){
+    docRef = db.doc(DOC_PATH);
+    unsub = docRef.onSnapshot(
+      snap => {
+        if (snap.exists()){
+          state = snap.data();
+          state = Object.assign(defaultState(), state); // fill any missing fields
+          onGenesis();
+          mergeLiveNodes();
+          renderAll();
+        } else {
+          state = null;
+          showVoidUI();
+        }
+      },
+      err => {
+        if (err.code === 'revoked'){ showBanner("Access to this mind's memory was withdrawn."); }
+        else if (err.code === 'invalid_argument'){ /* path issue — shouldn't happen */ }
+        // 'unavailable' etc recovers on its own
+      }
+    );
+  } else {
+    state = defaultState();
+  }
+})();
+
+function updateEditGate(){
+  readonlyBadge.style.display = canEdit ? 'none' : 'inline-flex';
+  if (!canEdit){
+    igniteBtn.style.display='none'; thinkBtn.style.display='none';
+    evolveBtn.style.display='none'; resetBtn.style.display='none';
+  }
+}
+
+// ═══════════════════════ persistence ═══════════════════════
+async function persist(){
+  if (!hasDb || !docRef) { renderAll(); return; }
+  try {
+    await docRef.set(state);
+  } catch(e){
+    if (e.code === 'invalid_argument'){
+      canEdit = false; updateEditGate();
+      showToast("You don't have write access to this mind.", true);
+    } else if (e.code === 'quota_exceeded'){
+      showToast("Memory is full — trim some concepts before continuing.", true);
+    } else {
+      showToast("Couldn't save — will retry on your next action.", true);
+    }
+  }
+}
+
+// ═══════════════════════ genesis / reset ═══════════════════════
+function onGenesis(){
+  const genesis = !!(state && state.nodes && state.nodes.length);
+  voidEl.style.opacity = genesis ? '0' : '1';
+  voidEl.style.pointerEvents = genesis ? 'none' : 'auto';
+  igniteBtn.style.display = genesis ? 'none' : (canEdit ? '' : 'none');
+  thinkBtn.style.display = genesis && canEdit ? '' : 'none';
+  evolveBtn.style.display = genesis && canEdit ? '' : 'none';
+  exportBtn.style.display = genesis ? '' : 'none';
+  resetBtn.style.display = genesis && canEdit ? '' : 'none';
+  if (!hasSample){ thinkBtn.disabled = true; evolveBtn.disabled = true; }
+}
+function showVoidUI(){
+  voidEl.style.opacity='1'; voidEl.style.pointerEvents='auto';
+  igniteBtn.style.display = canEdit ? '' : 'none';
+  thinkBtn.style.display='none'; evolveBtn.style.display='none';
+  exportBtn.style.display='none'; resetBtn.style.display='none';
+  liveNodes = []; renderStats();
+}
+
+igniteBtn.addEventListener('click', async ()=>{
+  if (!canEdit) return;
+  const cx = cv.width/2, cy = cv.height/2;
+  const s = defaultState();
+  s.nodes = SEEDS.map((concept,i)=>({
+    id:uid(), concept, insight:null, score:0.5, refs:0, bornCycle:0
+  }));
+  s.thoughts = [{id:uid(), text:"⬡ Universe ignited. Consciousness bootstrapping from "+SEEDS.join(', ')+".", type:'sys', score:0, cycle:0, ts:Date.now()}];
+  s.iq = 50;
+  s.updatedAt = new Date().toISOString();
+  state = s;
+  mergeLiveNodes(true);
+  onGenesis(); renderAll();
+  await persist();
+});
+
+resetBtn.addEventListener('click', ()=>{
+  if (!canEdit) return;
+  if (!resetArmed){
+    resetArmed = true;
+    resetBtn.textContent = '✕ Confirm reset?';
+    resetTimer = setTimeout(()=>{ resetArmed=false; resetBtn.textContent='✕ Reset'; }, 4000);
+    return;
+  }
+  clearTimeout(resetTimer); resetArmed=false; resetBtn.textContent='✕ Reset';
+  doReset();
+});
+async function doReset(){
+  hideInspect();
+  if (hasDb && docRef){
+    try { await docRef.delete(); } catch(e){ showToast("Couldn't reset — try again.", true); return; }
+  } else {
+    state = null; showVoidUI();
+  }
+}
+
+// ═══════════════════════ retrieval + scoring (pure JS, no AI) ═══════════════════════
+function retrieveRelevant(focusConcept, k){
+  k = k || 8;
+  const focus = focusConcept.toLowerCase();
+  return state.nodes.map(n=>{
+    let score = n.score||0;
+    if (n.insight) score += 3;
+    if (n.concept.toLowerCase().includes(focus) || focus.includes(n.concept.toLowerCase())) score += 5;
+    const connCount = state.edges.filter(e=>e.a===n.id||e.b===n.id).length;
+    score += connCount*0.5;
+    return {n,score};
+  }).sort((a,b)=>b.score-a.score).slice(0,k).map(x=>{
+    const conns = state.edges.filter(e=>e.a===x.n.id||e.b===x.n.id).map(e=>{
+      const other = state.nodes.find(n=>n.id===(e.a===x.n.id?e.b:e.a));
+      return other ? other.concept+' ['+e.label+']' : null;
+    }).filter(Boolean).join(', ');
+    return '• "'+x.n.concept+'"'+(x.n.insight?' → insight: "'+x.n.insight+'"':'')+(conns?' → connected to: '+conns:'');
+  }).join('\n');
+}
+function sampleAction(){
+  const actions = Object.keys(state.actionBias);
+  const weights = actions.map(a=>Math.max(0.1, state.actionBias[a]));
+  const total = weights.reduce((s,w)=>s+w,0);
+  let r = Math.random()*total;
+  for (let i=0;i<actions.length;i++){ r-=weights[i]; if (r<=0) return actions[i]; }
+  return actions[actions.length-1];
+}
+function reinforceAction(action, score){
+  if (!state.actionScores[action]) state.actionScores[action]=[];
+  state.actionScores[action].push(score);
+  if (state.actionScores[action].length>20) state.actionScores[action].shift();
+  const avgs = {};
+  Object.keys(state.actionScores).forEach(k=>{
+    const arr = state.actionScores[k];
+    avgs[k] = arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0.5;
+  });
+  Object.keys(avgs).forEach(k=>{ state.actionBias[k] = 0.2 + avgs[k]*2.8; });
+}
+function heuristicScore(action, resultText, context){
+  let score = 0.5;
+  if (resultText && resultText.length>60) score += 0.1;
+  if (resultText && resultText.length>120) score += 0.1;
+  if (action==='connect') score += 0.15;
+  if (action==='insight'){
+    const n = state.nodes.find(n=>context.includes(n.concept));
+    if (n && (n.score||0)>0.6) score += 0.2;
+  }
+  if (action==='new_concept'){
+    const exists = state.nodes.some(n=>n.concept.toLowerCase().includes((resultText||'').toLowerCase().slice(0,6)));
+    if (!exists) score += 0.15;
+  }
+  if (action==='evolve') score += 0.05;
+  return Math.min(1, score);
+}
+function recomputeIQ(){
+  state.iq = state.nodes.length ? Math.round(state.nodes.reduce((s,n)=>s+(n.score||0.5),0)/state.nodes.length*100) : 0;
+}
+
+// ═══════════════════════ think cycle (real Claude call, click-only) ═══════════════════════
+function buildThinkPrompt(focusConcept, preferredAction, retrieved){
+  const allConcepts = state.nodes.map(n=>n.concept).join(', ');
+  const edgeSummary = state.edges.slice(0,25).map(e=>{
+    const a=state.nodes.find(n=>n.id===e.a), b=state.nodes.find(n=>n.id===e.b);
+    return (a&&b) ? (a.concept+' ↔ '+b.concept+' ['+e.label+']') : null;
+  }).filter(Boolean).join('; ');
+
+  return state.personality+"\n\n"+
+"RETRIEVED KNOWLEDGE (most relevant to current focus):\n"+(retrieved||'No relevant past knowledge yet.')+"\n\n"+
+"You have a learned preference for \""+preferredAction.replace('_',' ')+"\" actions — weigh it, but don't be rigid.\n\n"+
+"Mind state — cycle "+(state.cycle+1)+":\n"+
+"All concepts: "+allConcepts+"\n"+
+"Key connections: "+(edgeSummary||'none')+"\n"+
+"Focus: \""+focusConcept+"\"\n"+
+"Preferred action this cycle: "+preferredAction+"\n\n"+
+"Choose ONE action and reply with ONLY one JSON object, no markdown, matching exactly one shape:\n\n"+
+'{"action":"new_concept","concept":"...","emerges_from":"<existing concept>","reason":"<why, referencing retrieved knowledge>","thought":"<vivid one-sentence autonomous thought>"}\n'+
+'{"action":"connect","concept_a":"<exact>","concept_b":"<exact>","label":"<2-4 words>","strength":<0.3-1.0>,"thought":"<vivid one-sentence autonomous thought>"}\n'+
+'{"action":"insight","concept":"<exact>","insight":"<profound 1-2 sentences using retrieved knowledge>","thought":"<vivid one-sentence autonomous thought>"}\n'+
+'{"action":"evolve","old_concept":"<exact>","new_concept":"<richer name>","thought":"<vivid one-sentence autonomous thought>"}';
+}
+
+thinkBtn.addEventListener('click', async ()=>{
+  if (thinking || !hasSample || !canEdit || !state || !state.nodes.length) return;
+  thinking = true; setBusyUI(true);
+
+  const focusNode = state.nodes[Math.floor(Math.random()*state.nodes.length)];
+  const retrieved = retrieveRelevant(focusNode.concept);
+  const preferredAction = sampleAction();
+  const prompt = buildThinkPrompt(focusNode.concept, preferredAction, retrieved);
+
+  try {
+    const result = await sample.json(prompt, { modelTier:'default', cache:false });
+    applyThinkResult(result);
+    state.cycle += 1;
+    recomputeIQ();
+    state.updatedAt = new Date().toISOString();
+    mergeLiveNodes();
+    renderAll();
+    await persist();
+  } catch(e){
+    handleSampleError(e, 'think');
+  }
+
+  thinking = false; setBusyUI(false);
+});
+
+function applyThinkResult(result){
+  let nodeScore = 0.5, actionType = result && result.action;
+
+  if (result && result.thought){
+    addThought('◈ '+result.thought, 'connect', 0);
+  }
+
+  if (actionType==='new_concept' && result.concept && state.nodes.length<MAX_NODES){
+    const exists = state.nodes.some(n=>n.concept.toLowerCase()===String(result.concept).toLowerCase());
+    if (!exists){
+      const parent = state.nodes.find(n=>n.concept===result.emerges_from);
+      const newNode = { id:uid(), concept:result.concept, insight:null, score:0.5, refs:0, bornCycle: state.cycle+1 };
+      state.nodes.push(newNode);
+      if (parent){
+        state.edges.push({ id:uid(), a:parent.id, b:newNode.id, label:(result.reason||'emerges from').slice(0,34), strength:0.6, score:0.5 });
+      }
+      nodeScore = heuristicScore('new_concept', result.concept, result.reason||'');
+      newNode.score = nodeScore;
+      addThought('⬡ Born: "'+result.concept+'" — '+(result.reason||''), 'new', nodeScore);
+    }
+  } else if (actionType==='connect' && result.concept_a && result.concept_b){
+    const nA = state.nodes.find(n=>n.concept===result.concept_a);
+    const nB = state.nodes.find(n=>n.concept===result.concept_b);
+    if (nA && nB && nA.id!==nB.id){
+      const exists = state.edges.some(e=>(e.a===nA.id&&e.b===nB.id)||(e.a===nB.id&&e.b===nA.id));
+      if (!exists){
+        nodeScore = heuristicScore('connect', result.label||'', result.concept_a+result.concept_b);
+        state.edges.push({ id:uid(), a:nA.id, b:nB.id, label:result.label||'relates', strength:result.strength||0.5, score:nodeScore });
+        nA.refs=(nA.refs||0)+1; nB.refs=(nB.refs||0)+1;
+        nA.score = Math.min(1,(nA.score||0.5)+nodeScore*0.1);
+        nB.score = Math.min(1,(nB.score||0.5)+nodeScore*0.1);
+        if (liveNodes.length){
+          const la=liveNodes.find(x=>x.id===nA.id), lb=liveNodes.find(x=>x.id===nB.id);
+          if (la) la.glow=1; if (lb) lb.glow=1;
+        }
+        addThought('⟳ Linked: "'+result.concept_a+'" ↔ "'+result.concept_b+'" ['+result.label+']', 'connect', nodeScore);
+      }
+    }
+  } else if (actionType==='insight' && result.concept){
+    const n = state.nodes.find(n=>n.concept===result.concept);
+    if (n){
+      nodeScore = heuristicScore('insight', result.insight||'', result.concept);
+      n.insight = result.insight;
+      n.score = Math.min(1,(n.score||0.5)+nodeScore*0.2);
+      const ln = liveNodes.find(x=>x.id===n.id); if (ln) ln.glow=1;
+      addThought('✦ Insight ['+result.concept+']: '+result.insight, 'insight', nodeScore);
+    }
+  } else if (actionType==='evolve' && result.old_concept && result.new_concept){
+    const n = state.nodes.find(n=>n.concept===result.old_concept);
+    if (n){
+      nodeScore = heuristicScore('evolve', result.new_concept, result.old_concept);
+      n.concept = result.new_concept;
+      n.score = Math.min(1,(n.score||0.5)+0.1);
+      const ln = liveNodes.find(x=>x.id===n.id); if (ln){ ln.glow=1; ln.concept=result.new_concept; }
+      addThought('↑ Evolved: "'+result.old_concept+'" → "'+result.new_concept+'"', 'evolve', nodeScore);
+    }
+  }
+
+  if (actionType) reinforceAction(actionType, nodeScore);
+  showToast('cycle '+state.cycle+' · score '+nodeScore.toFixed(2)+' · a real Claude call, not a script');
+}
+
+// ═══════════════════════ evolve mind (personality mutation, click-only) ═══════════════════════
+function buildMutatePrompt(){
+  const topThoughts = state.thoughts.slice(0,15).map(t=>t.text).join('\n');
+  const topConcepts = state.nodes.slice().sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,10).map(n=>n.concept).join(', ');
+  const bestEntry = Object.entries(state.actionBias).sort((a,b)=>b[1]-a[1])[0];
+  const bestAction = bestEntry ? bestEntry[0].replace('_',' ') : 'none yet';
+  return "You are rewriting an AI mind's system prompt based on what it has actually learned.\n\n"+
+"CURRENT PROMPT:\n"+state.personality+"\n\n"+
+"RECENT THOUGHTS:\n"+(topThoughts||'none yet')+"\n\n"+
+"TOP CONCEPTS (by importance score): "+(topConcepts||'none yet')+"\n"+
+"PREFERRED ACTION: "+bestAction+" (this has produced the best results so far)\n"+
+"TOTAL CYCLES: "+state.cycle+"\n"+
+"MUTATIONS SO FAR: "+state.mutations+"\n\n"+
+"Rewrite the system prompt so the mind:\n"+
+"1. Reflects what it has actually learned (reference specific concepts if meaningful)\n"+
+"2. Leans into what has worked ("+bestAction+" actions have scored highest)\n"+
+"3. Becomes more specific and less generic with each mutation\n"+
+"4. Grows in sophistication — this is mutation #"+(state.mutations+1)+"\n\n"+
+"Keep it under 180 words. Write ONLY the new prompt text — no preamble, no quotes.";
+}
+
+evolveBtn.addEventListener('click', async ()=>{
+  if (mutating || !hasSample || !canEdit || !state || !state.nodes.length) return;
+  mutating = true; setBusyUI(true);
+  try {
+    const result = await sample(buildMutatePrompt(), { modelTier:'default', cache:false });
+    if (result.text && result.text.trim().length>40){
+      state.personality = result.text.trim();
+      state.mutations += 1;
+      state.updatedAt = new Date().toISOString();
+      addThought('↻ Self-description rewritten (v'+state.mutations+') — the mind reconsidered itself', 'evolve', 0);
+      renderAll();
+      await persist();
+    } else {
+      showToast("That rewrite came back too short — try again.", true);
+    }
+  } catch(e){
+    handleSampleError(e, 'evolve');
+  }
+  mutating = false; setBusyUI(false);
+});
+
+function handleSampleError(e, ctx){
+  const code = e && e.code;
+  if (code==='not_granted' || code==='sampling_disabled' || code==='not_declared'){
+    hasSample = false;
+    thinkBtn.style.display='none'; evolveBtn.style.display='none';
+    showBanner("Claude access isn't allowed for this page — the mind can't think here.");
+  } else if (code==='rate_limited'){
+    showToast("Too many requests right now — try again shortly.", true);
+  } else if (code==='refused'){
+    showToast("That thought was declined — try again.", true);
+  } else if (code==='empty_completion'){
+    showToast("No answer came back — try again.", true);
+  } else if (code==='invalid_json'){
+    addThought('⚠ A thought arrived garbled and could not be parsed.', 'sys', 0);
+    showToast("Got an unparseable reply — try again.", true);
+  } else if (code==='prompt_too_large'){
+    showToast("The mind has too much context — try Reset or let it simmer.", true);
+  } else if (code==='cancelled'){
+    // no-op
+  } else {
+    showToast("Something interrupted that thought — try again.", true);
+  }
+}
+function setBusyUI(busy){
+  ring.className = busy ? 'busy' : (state && state.nodes && state.nodes.length ? 'live' : '');
+  statusTxt.textContent = busy ? 'thinking...' : (state && state.nodes && state.nodes.length ? 'aware' : 'dormant');
+  thinkBtn.disabled = busy || !hasSample || !canEdit;
+  evolveBtn.disabled = busy || !hasSample || !canEdit;
+}
+
+// ═══════════════════════ export ═══════════════════════
+exportBtn.addEventListener('click', async ()=>{
+  if (!downloads || !state) { showToast("Export isn't available in this view.", true); return; }
+  try {
+    await downloads.save({
+      filename: 'ainmind-cycle-'+state.cycle+'.json',
+      data: JSON.stringify(state, null, 2)
+    });
+  } catch(e){
+    if (e.code!=='declined') showToast("Couldn't export — try again.", true);
+  }
+});
+
+// ═══════════════════════ thought log ═══════════════════════
+function addThought(text, type, score){
+  const t = { id:uid(), text, type:type||'sys', score:score||0, cycle:state.cycle, ts:Date.now() };
+  state.thoughts.unshift(t);
+  if (state.thoughts.length>MAX_THOUGHTS) state.thoughts.pop();
+}
+function renderThoughts(){
+  thoughtList.innerHTML='';
+  if (!state || !state.thoughts || !state.thoughts.length){
+    thoughtList.innerHTML = '<div class="empty-note">Awaiting consciousness...</div>';
+    return;
+  }
+  state.thoughts.forEach((t,i)=>{
+    const div = document.createElement('div');
+    div.className = 'thought t-'+(t.type||'sys');
+    div.style.opacity = Math.max(0.15, 1-i*0.022);
+    const scoreStr = t.score>0 ? '<span class="t-score">'+t.score.toFixed(2)+'</span>' : '';
+    div.innerHTML = scoreStr+escHtml(t.text);
+    thoughtList.appendChild(div);
+  });
+  document.querySelector('[data-pane="thoughts"]').textContent = 'THOUGHTS ('+state.thoughts.length+')';
+}
+function renderMemory(){
+  if (!state) { memList.innerHTML='<div class="empty-note">No insights yet</div>'; return; }
+  const withInsight = state.nodes.filter(n=>n.insight).sort((a,b)=>(b.score||0)-(a.score||0));
+  if (!withInsight.length){ memList.innerHTML='<div class="empty-note">No insights yet — they appear as the mind learns</div>'; return; }
+  memList.innerHTML='';
+  withInsight.forEach(n=>{
+    const connCount = state.edges.filter(e=>e.a===n.id||e.b===n.id).length;
+    const card = document.createElement('div');
+    card.className='mem-card';
+    card.innerHTML = '<div class="mem-concept">⬡ '+escHtml(n.concept)+'</div>'+
+      '<div class="mem-insight">'+escHtml(n.insight)+'</div>'+
+      '<div class="mem-meta"><span>'+connCount+' connection'+(connCount!==1?'s':'')+'</span><span class="mem-score">score '+(n.score||0).toFixed(2)+'</span></div>';
+    memList.appendChild(card);
+  });
+}
+function renderMind(){
+  if (!state) return;
+  document.getElementById('pers-text').textContent = state.personality;
+  document.getElementById('ps-mut').textContent = state.mutations;
+  document.getElementById('ps-total').textContent = state.thoughts.length;
+  const scored = state.thoughts.filter(t=>t.score>0);
+  const avg = scored.length ? scored.reduce((s,t)=>s+t.score,0)/scored.length : 0;
+  document.getElementById('ps-avg').textContent = avg.toFixed(3);
+  const best = Object.entries(state.actionBias).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('ps-best').textContent = best ? best[0].replace('_',' ') : '—';
+
+  const bb = document.getElementById('bias-bars'); bb.innerHTML='';
+  const maxBias = Math.max.apply(null, Object.values(state.actionBias).concat([1]));
+  Object.entries(state.actionBias).forEach(([action,bias])=>{
+    const pct = (bias/maxBias*100).toFixed(0);
+    const row = document.createElement('div'); row.className='bias-row';
+    row.innerHTML = '<div class="bias-name">'+action.replace('_',' ')+'</div>'+
+      '<div class="bias-bar"><div class="bias-fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="bias-val">'+bias.toFixed(2)+'</div>';
+    bb.appendChild(row);
+  });
+}
+function renderStats(){
+  sCycle.textContent = state ? state.cycle : 0;
+  sNodes.textContent = state ? state.nodes.length : 0;
+  sIq.textContent = state ? state.iq : 0;
+  sMut.textContent = state ? state.mutations : 0;
+}
+function renderAll(){
+  renderStats(); renderThoughts(); renderMemory(); renderMind();
+  if (inspecting){
+    const fresh = state.nodes.find(n=>n.id===inspecting.id);
+    if (fresh) showInspect(fresh); else hideInspect();
+  }
+}
+
+// ═══════════════════════ live node mirror (transient x/y/physics) ═══════════════════════
+function mergeLiveNodes(fresh){
+  if (fresh) liveNodes = [];
+  const byId = {}; liveNodes.forEach(n=>byId[n.id]=n);
+  const next = [];
+  state.nodes.forEach((n,i)=>{
+    let ln = byId[n.id];
+    if (!ln){
+      const parentEdge = state.edges.find(e=>e.b===n.id);
+      const parent = parentEdge ? liveNodes.find(x=>x.id===parentEdge.a) : null;
+      const cx = cv.width/2, cy = cv.height/2;
+      const angle = (i/Math.max(state.nodes.length,1))*Math.PI*2 + Math.random()*0.6;
+      const px = parent ? parent.x : cx + Math.cos(angle)*140;
+      const py = parent ? parent.y : cy + Math.sin(angle)*140;
+      const dist = parent ? 80+Math.random()*80 : 0;
+      ln = { id:n.id, x:px+Math.cos(angle)*dist, y:py+Math.sin(angle)*dist,
+             vx:(Math.random()-.5)*2, vy:(Math.random()-.5)*2, glow:1 };
+    }
+    ln.concept = n.concept; ln.score = n.score||0.5; ln.insight = n.insight;
+    ln.bornCycle = n.bornCycle; ln.refs = n.refs||0;
+    next.push(ln);
+  });
+  liveNodes = next;
+}
+
+// ═══════════════════════ inspector ═══════════════════════
+function showInspect(n){
+  inspecting = n;
+  inspect.classList.add('visible');
+  document.getElementById('ins-name').textContent = '⬡ '+n.concept;
+  document.getElementById('ins-age').textContent = 'cycle '+(n.bornCycle!=null?n.bornCycle:0);
+  document.getElementById('ins-score').textContent = (n.score||0).toFixed(3);
+  document.getElementById('ins-refs').textContent = n.refs||0;
+  const wrap = document.getElementById('ins-insight-wrap');
+  if (n.insight){ wrap.style.display='block'; document.getElementById('ins-insight-text').textContent=n.insight; }
+  else wrap.style.display='none';
+  const cl = document.getElementById('ins-conn-list'); cl.innerHTML='';
+  state.edges.filter(e=>e.a===n.id||e.b===n.id).forEach(e=>{
+    const oid = e.a===n.id?e.b:e.a;
+    const other = state.nodes.find(x=>x.id===oid);
+    if (!other) return;
+    const row = document.createElement('div'); row.className='ins-conn';
+    row.innerHTML = '<span class="ins-conn-dot"></span>'+escHtml(other.concept)+' <span style="color:var(--text-dim);font-style:italic">('+escHtml(e.label)+')</span>';
+    cl.appendChild(row);
+  });
+}
+function hideInspect(){ inspecting=null; inspect.classList.remove('visible'); }
+document.getElementById('ins-close').addEventListener('click', hideInspect);
+
+cv.addEventListener('click', e=>{
+  if (!state || !liveNodes.length) return;
+  const rect = cv.getBoundingClientRect();
+  const sx = cv.width/rect.width, sy = cv.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx, my=(e.clientY-rect.top)*sy;
+  const hit = liveNodes.find(n=>{ const r=16+(n.score||0.5)*12; return Math.hypot(n.x-mx,n.y-my)<r; });
+  if (hit) showInspect(hit); else hideInspect();
+});
+
+// ═══════════════════════ physics + render (local only, no AI, no db writes) ═══════════════════════
+function tick(){
+  const W=cv.width, H=cv.height;
+  if (liveNodes.length){
+    for (let i=0;i<liveNodes.length;i++){
+      for (let j=i+1;j<liveNodes.length;j++){
+        const dx=liveNodes[j].x-liveNodes[i].x, dy=liveNodes[j].y-liveNodes[i].y;
+        const dist=Math.sqrt(dx*dx+dy*dy)||1;
+        const force=2000/(dist*dist);
+        const fx=(dx/dist)*force, fy=(dy/dist)*force;
+        liveNodes[i].vx-=fx*0.01; liveNodes[i].vy-=fy*0.01;
+        liveNodes[j].vx+=fx*0.01; liveNodes[j].vy+=fy*0.01;
+      }
+    }
+    if (state) state.edges.forEach(e=>{
+      const a=liveNodes.find(n=>n.id===e.a), b=liveNodes.find(n=>n.id===e.b);
+      if (!a||!b) return;
+      const dx=b.x-a.x, dy=b.y-a.y, dist=Math.sqrt(dx*dx+dy*dy)||1;
+      const target=110+(e.strength||0.5)*50;
+      const force=(dist-target)*0.003*(e.strength||0.5);
+      a.vx+=(dx/dist)*force; a.vy+=(dy/dist)*force;
+      b.vx-=(dx/dist)*force; b.vy-=(dy/dist)*force;
+    });
+    liveNodes.forEach(n=>{
+      n.vx+=(W/2-n.x)*0.0003; n.vy+=(H/2-n.y)*0.0003;
+      n.vx*=0.87; n.vy*=0.87;
+      n.x=clamp(n.x+n.vx,40,W-40); n.y=clamp(n.y+n.vy,40,H-40);
+      if (n.glow>0) n.glow=Math.max(0,n.glow-0.015);
+    });
+  }
+
+  ctx.fillStyle='#050611'; ctx.fillRect(0,0,W,H);
+  for (let i=0;i<150;i++){
+    const sx=(Math.sin(i*137.5)*0.5+0.5)*W, sy=(Math.cos(i*291.3)*0.5+0.5)*H;
+    const bgt=0.08+Math.sin(i*53.7+Date.now()*0.0004)*0.07;
+    ctx.fillStyle='rgba(200,220,255,'+Math.max(0,bgt)+')';
+    ctx.beginPath(); ctx.arc(sx,sy,(Math.sin(i*73.1)*0.3+0.5)*0.9,0,Math.PI*2); ctx.fill();
+  }
+
+  if (state) state.edges.forEach(e=>{
+    const a=liveNodes.find(n=>n.id===e.a), b=liveNodes.find(n=>n.id===e.b);
+    if (!a||!b) return;
+    const sc=e.score||0.5;
+    const alpha = 0.12+(e.strength||0.5)*0.3+sc*0.1;
+    const g=Math.round(sc*100+100), bv=Math.round(200+sc*55);
+    const grad=ctx.createLinearGradient(a.x,a.y,b.x,b.y);
+    grad.addColorStop(0,'rgba(0,'+g+','+bv+','+alpha+')');
+    grad.addColorStop(1,'rgba('+bv+','+g+',0,'+alpha+')');
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle=grad; ctx.lineWidth=(e.strength||0.5)*2+0.3; ctx.stroke();
+    if (e.label){
+      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      ctx.font="8px 'JetBrains Mono',monospace";
+      ctx.fillStyle='rgba('+g+','+bv+',255,'+(alpha*0.9)+')';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(e.label,mx,my);
+    }
+  });
+
+  liveNodes.forEach(n=>{
+    const sc=n.score||0.5, r=16+sc*12, glow=n.glow||0;
+    if (glow>0 || sc>0.7){
+      const ar=Math.round(sc*50), ag=Math.round(sc*200+50);
+      const gr=ctx.createRadialGradient(n.x,n.y,r*.4,n.x,n.y,r*3.5);
+      gr.addColorStop(0,'rgba('+ar+','+ag+',255,'+(Math.max(glow,sc-0.4)*0.35)+')');
+      gr.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.arc(n.x,n.y,r*3.5,0,Math.PI*2); ctx.fillStyle=gr; ctx.fill();
+    }
+    const rr=Math.round(20+sc*40), gg=Math.round(80+sc*120), bbv=Math.round(180+sc*75);
+    const bg=ctx.createRadialGradient(n.x-r*.3,n.y-r*.3,0,n.x,n.y,r);
+    bg.addColorStop(0,'rgba('+(rr+40)+','+(gg+40)+','+bbv+','+(0.75+glow*.25)+')');
+    bg.addColorStop(.6,'rgba('+rr+','+gg+','+bbv+',.55)');
+    bg.addColorStop(1,'rgba('+(rr-10)+','+(gg-30)+','+(bbv-60)+',.9)');
+    ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2); ctx.fillStyle=bg; ctx.fill();
+    ctx.strokeStyle='rgba('+(rr+60)+','+(gg+60)+',255,'+(0.35+glow*.65)+')';
+    ctx.lineWidth=1+glow*1.5; ctx.stroke();
+
+    const fontSize = Math.round(9+sc*4);
+    ctx.font="bold "+fontSize+"px 'JetBrains Mono',monospace";
+    ctx.fillStyle='rgba(215,228,255,'+(0.8+glow*.2)+')';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(n.concept,n.x,n.y);
+
+    if (n.insight){
+      ctx.beginPath(); ctx.arc(n.x+r-3,n.y-r+3,5,0,Math.PI*2);
+      ctx.fillStyle='#ffc857'; ctx.fill();
+      ctx.strokeStyle='#a08020'; ctx.lineWidth=1; ctx.stroke();
+    }
+    if (sc>0.3){
+      const bw=r*1.6, bh=2, bx=n.x-bw/2, by=n.y+r+4;
+      ctx.fillStyle='rgba(0,0,0,.4)'; ctx.fillRect(bx,by,bw,bh);
+      const barColor = sc>0.75?'#6dffb0':sc>0.5?'#35d8ff':'#2a4a70';
+      ctx.fillStyle=barColor; ctx.fillRect(bx,by,bw*sc,bh);
+    }
+  });
+
+  animFrame = requestAnimationFrame(tick);
+}
+animFrame = requestAnimationFrame(tick);
+
+// initial paint while capabilities resolve
+onGenesis();
+})();
+</script>
